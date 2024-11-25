@@ -22,6 +22,7 @@ last_char = None
 stable_char = None  # Initialize stable_char to None
 stable_start_time = None
 stability_duration = 2  # Minimum duration (in seconds) for stability
+nothing_detected = False
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -105,7 +106,7 @@ def get_consistent_letter(detected_letter):
     return "None"
 
 def main():
-    global sentence, last_char, stable_char, stable_start_time, stability_duration  # Declare global variables to modify them
+    global sentence, last_char, stable_char, stable_start_time, stability_duration, nothing_detected # Declare global variables to modify them
     
     # Argument parsing #################################################################
     args = get_args()
@@ -252,15 +253,35 @@ def main():
                 )
 
         # Stability checking for sentence formation
+        # if stable_char is not None and detected_letter == stable_char:
+        #     if stable_start_time and time.time() - stable_start_time >= stability_duration:
+        #         # If current character is '-' and nothing has been detected previously
+        #         if detected_letter == '-' and not nothing_detected:
+        #             nothing_detected = True
+        #         # If current character is not '-', or after '-' has been detected, append the detected letter
+        #         elif detected_letter != '-' and (nothing_detected or detected_letter != last_char):
+        #             sentence.append(detected_letter)
+        #             last_char = detected_letter
+        #             nothing_detected = False
+        #             stable_start_time = None
+        # else:
+        #     # Update stable_char to the new detected letter and reset timing
+        #     stable_char = detected_letter
+        #     stable_start_time = time.time()
+            
+        # Stability checking for sentence formation
         if stable_char is not None and detected_letter == stable_char:
             if stable_start_time and time.time() - stable_start_time >= stability_duration:
-                if detected_letter != last_char:
-                    sentence.append(detected_letter)
-                    last_char = detected_letter
-                    stable_start_time = None
+                # Always append the detected character to the sentence
+                sentence.append(detected_letter)
+                last_char = detected_letter  # Update the last character
+                stable_start_time = None
         else:
+            # Update stable_char to the new detected letter and reset timing
             stable_char = detected_letter
             stable_start_time = time.time()
+
+
 
         if results.multi_hand_landmarks is None:
             point_history.append([0, 0])
