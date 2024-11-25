@@ -14,6 +14,14 @@ from model import KeyPointClassifier
 from model import PointHistoryClassifier
 from collections import deque, Counter
 
+import time
+
+# Sentence formation variables ##########################################
+sentence = []
+last_char = None
+stable_char = None  # Initialize stable_char to None
+stable_start_time = None
+stability_duration = 2  # Minimum duration (in seconds) for stability
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -96,8 +104,9 @@ def get_consistent_letter(detected_letter):
         return Counter(letter_history).most_common(1)[0][0]
     return "None"
 
-
 def main():
+    global sentence, last_char, stable_char, stable_start_time, stability_duration  # Declare global variables to modify them
+    
     # Argument parsing #################################################################
     args = get_args()
 
@@ -126,7 +135,6 @@ def main():
     )
 
     keypoint_classifier = KeyPointClassifier()
-
     point_history_classifier = PointHistoryClassifier()
 
     # Read labels ###########################################################
@@ -164,6 +172,18 @@ def main():
         key = cv.waitKey(10)
         if key == 27:  # ESC
             break
+        elif key == ord('c'):  # Clear sentence
+            sentence = []
+            last_char = None
+            stable_char = None  # Reset stable_char
+            stable_start_time = None
+        elif key == ord('d'):  # Delete the last character
+            if sentence:
+                sentence.pop()
+                last_char = None  # Reset for new input
+        elif key == ord(' '):  # Add a space
+            sentence.append(' ')
+
         number, mode = select_mode(key, mode)
 
         # Camera capture #####################################################
@@ -175,14 +195,13 @@ def main():
 
         # Detection implementation #############################################################
         image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
-
         image.flags.writeable = False
         results = hands.process(image)
         image.flags.writeable = True
 
-        detected_letters = []
-        
-        #  ####################################################################
+        detected_letter = None
+
+        # Process hands ###########################################################
         if results.multi_hand_landmarks is not None:
             for hand_landmarks, handedness in zip(results.multi_hand_landmarks,
                                                   results.multi_handedness):
@@ -203,7 +222,7 @@ def main():
                 # Hand sign classification
                 hand_sign_id = keypoint_classifier(pre_processed_landmark_list)
                 detected_letter = keypoint_classifier_labels[hand_sign_id]
-                detected_letters.append(detected_letter)
+
                 if hand_sign_id == 2:  # Point gesture
                     point_history.append(landmark_list[8])
                 else:
@@ -228,28 +247,32 @@ def main():
                     debug_image,
                     brect,
                     handedness,
-                    keypoint_classifier_labels[hand_sign_id],
+                    detected_letter,
                     point_history_classifier_labels[most_common_fg_id[0][0]],
                 )
-                
-        if len(detected_letters) == 1:
-            consistent_letter = detected_letters[0]
-        elif len(detected_letters) == 2 and detected_letters[0] == detected_letters[1]:
-            consistent_letter = detected_letters[0]
+
+        # Stability checking for sentence formation
+        if stable_char is not None and detected_letter == stable_char:
+            if stable_start_time and time.time() - stable_start_time >= stability_duration:
+                if detected_letter != last_char:
+                    sentence.append(detected_letter)
+                    last_char = detected_letter
+                    stable_start_time = None
         else:
-            consistent_letter = None
-        debug_image = draw_info(debug_image, fps, mode, number, consistent_letter)
-        
+            stable_char = detected_letter
+            stable_start_time = time.time()
+
         if results.multi_hand_landmarks is None:
             point_history.append([0, 0])
-        
+
+        # Draw FPS, mode, and sentence
+        debug_image = draw_info(debug_image, fps, mode, number, sentence=sentence, detected_letter=detected_letter)
 
         # Screen reflection #############################################################
         cv.imshow('Hand Gesture Recognition', debug_image)
 
     cap.release()
     cv.destroyAllWindows()
-
 
 def select_mode(key, mode):
     number = -1  # Default to -1 when no valid key is pressed
@@ -591,7 +614,7 @@ def draw_point_history(image, point_history):
     return image
 
 
-def draw_info(image, fps, mode, number, detected_letter=None):
+def draw_info(image, fps, mode, number, sentence=None, detected_letter=None):
     """
     Draw information such as FPS, mode, number, and detected letter on the image.
     
@@ -605,6 +628,15 @@ def draw_info(image, fps, mode, number, detected_letter=None):
     Returns:
         ndarray: The updated image.
     """
+    # Help panel
+    help_panel = [
+        "Controls:",
+        "'q' - Quit the application",
+        "'c' - Clear the sentence",
+        "'d' - Delete the last character",
+        "'Space' - Add a space to the sentence"
+    ]
+    
     # Display FPS
     cv.putText(image, "FPS:" + str(fps), (10, 30), cv.FONT_HERSHEY_SIMPLEX,
                1.0, (0, 0, 0), 4, cv.LINE_AA)
@@ -622,16 +654,51 @@ def draw_info(image, fps, mode, number, detected_letter=None):
                        cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1,
                        cv.LINE_AA)
 
-    # Display detected letter
+    # Display "Letter Detected" label (always shown)
+    cv.putText(image, "Letter Detected:", (10, 80),
+               cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
+    cv.putText(image, "Letter Detected:", (10, 80),
+               cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv.LINE_AA)
+    
+    # Display detected letter if it exists
     if detected_letter:
-        cv.putText(image, f"Letter Detected: {detected_letter}", (10, 150),
-                   cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
-        cv.putText(image, f"Letter Detected: {detected_letter}", (10, 150),
+        cv.putText(image, f"{detected_letter}", (280, 80),
                    cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2, cv.LINE_AA)
 
+    # Display "Output" label (always shown)
+    cv.putText(image, "Output:", (10, 130),
+               cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
+    cv.putText(image, "Output:", (10, 130),
+               cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv.LINE_AA)
+
+    # Display the current sentence if it exists
+    if sentence:
+        display_text = ''.join(sentence)
+        wrapped_lines = [display_text[i:i + 30] for i in range(0, len(display_text), 30)]
+        for i, line in enumerate(wrapped_lines):
+            y = 130 # Adjust vertical spacing for sentence output
+            cv.putText(image, line, (130, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
+            cv.putText(image, line, (130, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv.LINE_AA)
+            
+    # Calculate the maximum width of the help text
+    max_text_width = 0
+    for line in help_panel:
+        (text_width, text_height), _ = cv.getTextSize(line, cv.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+        max_text_width = max(max_text_width, text_width)
+
+    # Position the help panel and rectangle based on text width
+    panel_x = image.shape[1] - max_text_width - 30  # Position panel to the right
+    panel_y = image.shape[0] - 100  # 150 pixels from the bottom
+
+    # Draw background rectangle for the help panel
+    cv.rectangle(image, (panel_x - 15, panel_y - 15), (image.shape[1] - 10, panel_y + 25 + len(help_panel) * 30), (0, 0, 0), -1)
+
+    # Draw each help text line
+    for i, line in enumerate(help_panel):
+        y = panel_y + i * 20  # Adjust vertical spacing
+        cv.putText(image, line, (panel_x, y), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+
     return image
-
-
 
 if __name__ == '__main__':
     main()
