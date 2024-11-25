@@ -252,14 +252,14 @@ def main():
 
 
 def select_mode(key, mode):
-    number = -1
-    if 48 <= key <= 57:  # 0 ~ 9
-        number = key - 48
-    if key == 110:  # n
+    number = -1  # Default to -1 when no valid key is pressed
+    if 97 <= key <= 122:  # 'a' to 'z' in ASCII
+        number = key - 97  # Convert ASCII to a zero-based index (0 for 'a', 1 for 'b', ..., 25 for 'z')
+    if key == 48:  # 'n'
         mode = 0
-    if key == 107:  # k
+    if key == 49:  # 'k'
         mode = 1
-    if key == 104:  # h
+    if key == 50:  # 'h'
         mode = 2
     return number, mode
 
@@ -351,12 +351,12 @@ def pre_process_point_history(image, point_history):
 def logging_csv(number, mode, landmark_list, point_history_list):
     if mode == 0:
         pass
-    if mode == 1 and (0 <= number <= 9):
+    if mode == 1 and (0 <= number <= 25):
         csv_path = 'model/keypoint_classifier/keypoint.csv'
         with open(csv_path, 'a', newline="") as f:
             writer = csv.writer(f)
             writer.writerow([number, *landmark_list])
-    if mode == 2 and (0 <= number <= 9):
+    if mode == 2 and (0 <= number <= 25):
         csv_path = 'model/point_history_classifier/point_history.csv'
         with open(csv_path, 'a', newline="") as f:
             writer = csv.writer(f)
@@ -617,7 +617,7 @@ def draw_info(image, fps, mode, number, detected_letter=None):
         cv.putText(image, "MODE:" + mode_string[mode - 1], (10, 90),
                    cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1,
                    cv.LINE_AA)
-        if 0 <= number <= 9:
+        if 0 <= number <= 25:
             cv.putText(image, "NUM:" + str(number), (10, 110),
                        cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1,
                        cv.LINE_AA)
