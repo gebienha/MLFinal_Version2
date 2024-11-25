@@ -70,7 +70,7 @@ def combine_hand_predictions(left_hand, right_hand, confidence_threshold=0.8):
 
     # Case 1: Both hands agree and are confident
     if left_letter == right_letter and left_letter is not None:
-        return left_letter
+        return right_letter
 
     # Case 2: Only one hand is confident
     if left_letter is not None and right_letter is None:
@@ -81,7 +81,7 @@ def combine_hand_predictions(left_hand, right_hand, confidence_threshold=0.8):
     # Case 3: Conflict between confident predictions
     if left_letter is not None and right_letter is not None:
         # Use a simple priority rule or fallback to left hand by default
-        return left_letter  # Example: prioritize left hand in case of conflict
+        return right_letter  # Example: prioritize left hand in case of conflict
 
     # Case 4: No valid predictions
     return None
@@ -693,13 +693,47 @@ def draw_info(image, fps, mode, number, sentence=None, detected_letter=None):
                cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv.LINE_AA)
 
     # Display the current sentence if it exists
+    # if sentence:
+    #     display_text = ''.join(sentence)
+    #     wrapped_lines = [display_text[i:i + 30] for i in range(0, len(display_text), 30)]
+    #     for i, line in enumerate(wrapped_lines):
+    #         y = 130 # Adjust vertical spacing for sentence output
+    #         cv.putText(image, line, (130, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
+    #         cv.putText(image, line, (130, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv.LINE_AA)
+    screen_width = 640  # Adjust as per your screen width
+    x_start, y_start = 130, 130  # Starting coordinates for text
+
     if sentence:
         display_text = ''.join(sentence)
-        wrapped_lines = [display_text[i:i + 30] for i in range(0, len(display_text), 30)]
-        for i, line in enumerate(wrapped_lines):
-            y = 130 # Adjust vertical spacing for sentence output
-            cv.putText(image, line, (130, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
-            cv.putText(image, line, (130, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv.LINE_AA)
+        lines = []
+        current_line = ""
+        
+        for char in display_text:
+            # Add the character to the current line
+            temp_line = current_line + char
+            
+            # Check the width of the current line
+            text_size = cv.getTextSize(temp_line, cv.FONT_HERSHEY_SIMPLEX, 1.0, 2)
+            text_width = text_size[0][0]
+            
+            # If the line exceeds the screen width, start a new line
+            if text_width < screen_width:
+                current_line = temp_line
+            else:
+                lines.append(current_line)  # Add the current line to lines
+                current_line = char  # Start a new line with the current character
+        
+        # Append the last line
+        lines.append(current_line)
+        
+        # Draw each line of text
+        y = y_start
+        for line in lines:
+            # Draw shadowed text
+            cv.putText(image, line, (x_start, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
+            # Draw white text
+            cv.putText(image, line, (x_start, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv.LINE_AA)
+            y += 30  # Adjust vertical spacing for each line
             
     # Calculate the maximum width of the help text
     max_text_width = 0
