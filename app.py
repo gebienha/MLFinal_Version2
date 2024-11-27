@@ -652,7 +652,7 @@ def draw_info(image, fps, mode, number, sentence=None, detected_letter=None):
     # Help panel
     help_panel = [
         "Controls:",
-        "'q' - Quit the application",
+        "'esc' - Quit the application",
         "'c' - Clear the sentence",
         "'d' - Delete the last character",
         "'Space' - Add a space to the sentence"
@@ -700,7 +700,7 @@ def draw_info(image, fps, mode, number, sentence=None, detected_letter=None):
     #         y = 130 # Adjust vertical spacing for sentence output
     #         cv.putText(image, line, (130, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 4, cv.LINE_AA)
     #         cv.putText(image, line, (130, y), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv.LINE_AA)
-    screen_width = 640  # Adjust as per your screen width
+    screen_width = 640 # Adjust as per your screen width
     x_start, y_start = 130, 130  # Starting coordinates for text
 
     if sentence:
